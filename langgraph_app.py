@@ -1,4 +1,3 @@
-# langgraph_app.py
 
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda, RunnableConfig
@@ -10,18 +9,17 @@ import json
 from typing import TypedDict, Optional, Union
 
 
-# 👇 LangGraph state schema
+
 class AgentState(TypedDict, total=False):
-    input: str                         # User's original query
-    tool_call: Optional[str]           # Raw tool call from LLM (usually JSON string)
-    tool_name: Optional[str]           # Optional, parsed out of tool_call
-    tool_input: Optional[str]          # Optional, parsed out of tool_call
-    query_result: Optional[Union[str, list]]  # Result from DB query
+    input: str                         
+    tool_call: Optional[str]           
+    tool_name: Optional[str]           
+    tool_input: Optional[str]         
+    query_result: Optional[Union[str, list]]  
     final_response: Optional[str]
     error: Optional[str]
 
 
-# 👇 Register tools with LangGraph
 @tool
 def query_tool(sql: str) -> str:
     """Run SELECT queries on the HR database."""
@@ -35,7 +33,6 @@ def update_tool(sql: str) -> str:
     return str(result)
 
 
-# 👇 Gemini decides what SQL to generate + which tool to call
 def llm_decide_tool(state: AgentState) -> AgentState:
     user_input = state.get("input", "")
 
@@ -73,7 +70,7 @@ OR
 }}
 
 User query: "{user_input}"
-"""
+    """
 
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
@@ -94,7 +91,7 @@ User query: "{user_input}"
             "error": f"LLM error: {e}"
         }
 
-# 👇 Use the selected tool and run the SQL
+
 def execute_tool(state: AgentState) -> AgentState:
     import json
 
@@ -110,14 +107,13 @@ def execute_tool(state: AgentState) -> AgentState:
         result = f"Unknown tool: {tool_name}"
 
     return {
-        **state,  # ✅ Keep previous state
-        "query_result": result  # ✅ Add new result
+        **state,  
+        "query_result": result  
     }
 
 
-# 👇 Gemini generates a final friendly response
 def final_response(state: AgentState) -> AgentState:
-    result = state.get("query_result") or state.get("output") or "⚠️ No result available."
+    result = state.get("query_result") or state.get("output") or " No result available."
     user_input = state.get("input", "")
 
     prompt = f"""
@@ -143,7 +139,7 @@ If the result is empty or not helpful, say so.
 
 
 
-# 👇 LangGraph flow
+
 def build_graph():
         graph = StateGraph(AgentState)
 
@@ -153,13 +149,13 @@ def build_graph():
 
         graph.set_entry_point("decide_tool")
 
-        # 🚨 New conditional routing logic
+        
         def route_tool_call(state):
             if state.get("tool_call"):
                 return "execute_sql"
             else:
-                return "respond"  # Or 'END' to finish the graph
-
+                return "respond"  
+                
         graph.add_conditional_edges(
             "decide_tool",
             route_tool_call
@@ -171,9 +167,8 @@ def build_graph():
         return graph.compile()
 
 
-# 👇 External entry point for Streamlit or CLI
 def run_agent(user_input: str):
     workflow = build_graph()
     result = workflow.invoke({"input": user_input})
-    print("🧠 FINAL STATE:", result)
+    print("FINAL STATE:", result)
     return result
